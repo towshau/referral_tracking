@@ -3,6 +3,8 @@
 This document reflects the current state of Supabase objects for the Lockeroom Referral Program (from the [Referral Dashboard Build Plan](.cursor/plans/referral_dashboard_build_plan_fa12ee9d.plan.md)).  
 **Green** = created and present in Supabase. **Red** = not yet created.
 
+Standalone Mermaid files: [`dataflow-diagram.mermaid`](dataflow-diagram.mermaid) (timeline) · [`dataflow-automations.mermaid`](dataflow-automations.mermaid) (automations).
+
 ---
 
 ## Summary: Created vs not created

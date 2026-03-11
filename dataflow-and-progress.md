@@ -3,8 +3,6 @@
 This document reflects the current state of Supabase objects for the Lockeroom Referral Program (from the [Referral Dashboard Build Plan](.cursor/plans/referral_dashboard_build_plan_fa12ee9d.plan.md)).  
 **Green** = created and present in Supabase. **Red** = not yet created.
 
-Standalone Mermaid files: [`dataflow-diagram.mermaid`](dataflow-diagram.mermaid) (timeline) · [`dataflow-automations.mermaid`](dataflow-automations.mermaid) (automations).
-
 ---
 
 ## Summary: Created vs not created
@@ -21,41 +19,45 @@ Standalone Mermaid files: [`dataflow-diagram.mermaid`](dataflow-diagram.mermaid)
 
 ---
 
-## Dataflow diagram (left → right timeline)
+## Dataflow diagrams
+
+All referral dataflow diagrams are in this section: (1) left-to-right timeline, (2) automations above/below the main flow.
+
+### 1. Left to right timeline
 
 Flow is **left to right**: from “existing member refers a lead” through to “lead in `lead_referral`”, trial/conversion, and (future) credit.  
 Automations/triggers sit **above** (data entry / touchpoints) and **below** (downstream actions).
 
 ```mermaid
 flowchart LR
-  subgraph legend [" "]
+  subgraph legend [""]
     direction LR
     L1[Created]
     L2[Not created]
   end
 
-  subgraph entry ["Entry & capture"]
-    A[("Existing member refers lead")]
-    B[("Referral Tracking Form (Retool)")]
-    C[(("lead_referral"))]
+  subgraph entry ["Entry and capture"]
+    A["Existing member refers lead"]
+    B["Referral Tracking Form Retool"]
+    C["lead_referral"]
   end
 
-  subgraph trial ["Trial & conversion"]
-    D[T1 / T2 / T3 completed]
-    E[Completed All 3]
-    F[Signed up?]
-    G[Membership / value / price]
+  subgraph trial ["Trial and conversion"]
+    D["T1 T2 T3 completed"]
+    E["Completed All 3"]
+    F["Signed up?"]
+    G["Membership value price"]
   end
 
-  subgraph future ["Reward (not built)"]
-    H[(("referral_credit"))]
-    I[("member_holds or dedicated table")]
+  subgraph future ["Reward not built"]
+    H["referral_credit"]
+    I["member_holds or dedicated table"]
   end
 
   subgraph sources ["Existing sources"]
-    M[(member_database)]
-    MM[(member_memberships)]
-    NM[(member_newsale_metadata)]
+    M["member_database"]
+    MM["member_memberships"]
+    NM["member_newsale_metadata"]
   end
 
   A --> B
@@ -64,10 +66,10 @@ flowchart LR
   D --> E
   E --> F
   F --> G
-  F -.->|"when signed_up = true (planned)"| H
+  F -.->|when signed_up = true planned| H
   H -.-> I
 
-  MM -.->|backfill / CRON planned| C
+  MM -.->|backfill CRON planned| C
   NM -.->|backfill planned| C
 
   style C fill:#9f9,stroke:#2d5a27
@@ -82,29 +84,29 @@ flowchart LR
 
 ---
 
-## Automations and triggers (above/below flow)
+### 2. Automations and triggers (above/below flow)
 
 ```mermaid
 flowchart TB
-  subgraph above ["Data entry / touchpoints (above the main flow)"]
-    F1[("Referral Tracking Form (Retool)")]
-    F2[("member_referral_log – touchpoint history")]
-    F3[("Staff logs touchpoint type + date + staff")]
+  subgraph above ["Data entry and touchpoints above the main flow"]
+    F1["Referral Tracking Form Retool"]
+    F2["member_referral_log touchpoint history"]
+    F3["Staff logs touchpoint type date and staff"]
   end
 
   subgraph main ["Main table flow"]
-    T1[(("lead_referral"))]
+    T1["lead_referral"]
   end
 
-  subgraph below ["Downstream automations (below the main flow)"]
-    A1["Trigger: when signed_up = true"]
-    A2["Create / update referral credit ($1k)"]
-    A3["(Optional) CRON: backfill T1/T2/T3 from member_memberships / newsale"]
-    A4["Auto-flag: revenue or survey score 8–10 (Phase 2)"]
+  subgraph below ["Downstream automations below the main flow"]
+    A1["Trigger when signed_up = true"]
+    A2["Create or update referral credit 1k"]
+    A3["Optional CRON backfill T1 T2 T3 from member_memberships newsale"]
+    A4["Auto-flag revenue or survey score 8 to 10 Phase 2"]
   end
 
   F1 --> T1
-  F2 -.->|"feeds member_referral_view"| F3
+  F2 -.->|feeds member_referral_view| F3
   T1 --> A1
   A1 --> A2
   A3 -.-> T1

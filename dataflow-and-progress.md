@@ -1,7 +1,7 @@
 # Referral Dashboard – Dataflow & Progress
 
-This document reflects the current state of Supabase objects for the Lockeroom Referral Program (from the [Referral Dashboard Build Plan](.cursor/plans/referral_dashboard_build_plan_fa12ee9d.plan.md)).  
-**Green** = created and present in Supabase. **Red** = not yet created.
+This document reflects the current state of Supabase for the Lockeroom Referral Program (from the [Referral Dashboard Build Plan](.cursor/plans/referral_dashboard_build_plan_fa12ee9d.plan.md)).  
+**Green** = created in Supabase. **Red** = not yet created. Conversion automations will be implemented in Supabase (see Plan below).
 
 ---
 
@@ -11,11 +11,11 @@ This document reflects the current state of Supabase objects for the Lockeroom R
 |------|------------------|-------------------|
 | **Tables** | `lead_referral` | `member_referral_log`, `referral_credit` (or referral type on `member_holds`) |
 | **Views** | — | `member_referral_view` |
-| **Functions** | — | (none specified in plan; trigger logic for “issue credit on sign-up” would call or live in DB) |
-| **Triggers** | — | Trigger on `lead_referral` or downstream when `signed_up = true` → create referral credit |
-| **Cron** | — | No referral-specific cron found; backfill for T1/T2/T3 from `member_memberships` / newsale may be external or Retool |
-| **RLS** | — | RLS not enabled on `lead_referral`; no policies for referral tables yet |
-| **Automation** | Retool Referral Tracking Form (writes to `lead_referral`) | Auto-issue $1k credit on sign-up; auto-flag for revenue/survey score 8–10 |
+| **Functions** | — | Match-new-member function; referral-credit function (see Plan) |
+| **Triggers** | — | On member_memberships INSERT: fuzzy match name to lead_referral.name then update lead (membership, value, price_paid, signed_up) |
+| **Cron** | — | No referral-specific cron in Supabase |
+| **RLS** | — | RLS not enabled on lead_referral; no policies yet |
+| **Automation** | Retool Referral Tracking Form (writes to lead_referral) | Conversion automations in Supabase (see Plan); $1k credit; auto-flag score 8–10 |
 
 ---
 
@@ -118,6 +118,56 @@ flowchart TB
 
 ---
 
+## Plan: Supabase functions and triggers (to build)
+
+These automations are **not** in Retool; they will be implemented in Supabase.
+
+### Part 1: Match new member_memberships to lead_referral and auto-fill conversion
+
+**Goal:** When a new row is inserted into `member_memberships`, if the member’s name fuzzy-matches a lead in `lead_referral`, automatically update that lead with the new membership and set signed up.
+
+**Steps:**
+
+1. **Schema**
+   - Ensure `lead_referral.membership` is a **foreign key to `member_memberships.id`** (it is already `uuid`; add FK constraint if missing).
+   - No change to `member_database` for this; we use `member_memberships.member_name` (or join to `member_database` for the name) for matching.
+
+2. **Function**
+   - Create a function, e.g. `sync_lead_referral_on_new_membership()`, that:
+     - Runs in a trigger context **AFTER INSERT** on `member_memberships` (and optionally AFTER UPDATE when `newsale_metadata` is set).
+     - Takes the new row: `NEW.member_name` (or name from `member_database` via `NEW.member_id`), `NEW.id` (membership id), `NEW.newsale_metadata` (uuid → `member_newsale_metadata`).
+     - **Fuzzy-matches** `NEW.member_name` (or member_database full name) to `lead_referral.name` (e.g. using `similarity()` from pg_trgm, or `word_similarity`, and a threshold).
+     - If exactly one matching lead is found (or best match above threshold):
+       - Update that `lead_referral` row:
+         - `membership` = `NEW.id` (the new `member_memberships.id`).
+         - `membership_value` = `base_membership_value` from `member_newsale_metadata` where `id = NEW.newsale_metadata`.
+         - `price_paid` = `price_paid` from `member_newsale_metadata` where `id = NEW.newsale_metadata`.
+         - `signed_up` = `true`.
+     - If `NEW.newsale_metadata` is null, membership_value and price_paid can be left unchanged or set to null.
+
+3. **Trigger**
+   - Create trigger on `member_memberships`: **AFTER INSERT** (and optionally AFTER UPDATE of `newsale_metadata`), call `sync_lead_referral_on_new_membership()`.
+
+**Data sources:**
+
+| lead_referral column | Source |
+|----------------------|--------|
+| `membership`         | `member_memberships.id` (new row) |
+| `membership_value`   | `member_newsale_metadata.base_membership_value` via `member_memberships.newsale_metadata` |
+| `price_paid`         | `member_newsale_metadata.price_paid` via `member_memberships.newsale_metadata` |
+| `signed_up`          | Set to `true` |
+
+**Fuzzy match:** Use the new membership’s member name (`member_memberships.member_name` or `member_database` joined by `member_id`) against `lead_referral.name`. Postgres `pg_trgm` extension provides `similarity()` / `word_similarity()`; set a threshold (e.g. > 0.3) and pick best match, or require single match.
+
+---
+
+### Part 2 (later)
+
+- **all_completed:** Trigger or function so that when `t_1`, `t_2`, and `t_3` are all true on a `lead_referral` row, set `all_completed = true` (and optionally when any is false, set `all_completed = false`). Can be a small trigger on `lead_referral` BEFORE INSERT/UPDATE.
+- **Referral credit:** When a lead is marked signed up, create/update a row in `referral_credit` (or `member_holds` with referral type) for the `referring_member` ($1k credit). Separate trigger or same function.
+
+---
+
 ## Tables and views reference
 
 | Object | Status | Notes |
@@ -135,9 +185,10 @@ flowchart TB
 
 ## Functions and triggers
 
-- **Referral-specific functions:** None found in Supabase (no `*referral*` or `*lead*` functions besides unrelated `get_nutrition_lead_hours_for_week`).
-- **Triggers on lead_referral:** None. No triggers on any referral table yet.
-- **Planned:** Trigger (or CRON) when a lead is marked Signed Up → create/update row in `referral_credit` (or equivalent) for `referring_member`, optionally linked to `lead_referral.id`.
+- **Supabase (current):** No referral-specific functions or triggers. No routines reference `lead_referral`; no triggers on `lead_referral` or `member_memberships` for referral sync.
+- **Planned (see “Plan” above):**
+  - **Part 1:** Trigger on `member_memberships` INSERT (and optionally UPDATE): fuzzy match new member name to `lead_referral.name` → update that lead’s `membership` (FK to `member_memberships.id`), `membership_value` and `price_paid` from `member_newsale_metadata`, and `signed_up = true`.
+  - **Part 2:** Trigger on `lead_referral` so `all_completed` is set when T1, T2, T3 are all true; and trigger/function to create referral credit when signed up.
 
 ---
 

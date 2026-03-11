@@ -1,0 +1,34 @@
+%% Referral Dashboard – Automations and triggers (above/below flow)
+flowchart TB
+  subgraph above ["Data entry / touchpoints (above the main flow)"]
+    F1[("Referral Tracking Form (Retool)")]
+    F2[("member_referral_log – touchpoint history")]
+    F3[("Staff logs touchpoint type + date + staff")]
+  end
+
+  subgraph main ["Main table flow"]
+    T1[(("lead_referral"))]
+  end
+
+  subgraph below ["Downstream automations (below the main flow)"]
+    A1["Trigger: when signed_up = true"]
+    A2["Create / update referral credit ($1k)"]
+    A3["(Optional) CRON: backfill T1/T2/T3 from member_memberships / newsale"]
+    A4["Auto-flag: revenue or survey score 8–10 (Phase 2)"]
+  end
+
+  F1 --> T1
+  F2 -.->|"feeds member_referral_view"| F3
+  T1 --> A1
+  A1 --> A2
+  A3 -.-> T1
+  A4 -.-> T1
+
+  style T1 fill:#9f9,stroke:#2d5a27
+  style F1 fill:#9f9,stroke:#2d5a27
+  style F2 fill:#f99,stroke:#8b0000
+  style F3 fill:#f99,stroke:#8b0000
+  style A1 fill:#f99,stroke:#8b0000
+  style A2 fill:#f99,stroke:#8b0000
+  style A3 fill:#f99,stroke:#8b0000
+  style A4 fill:#f99,stroke:#8b0000

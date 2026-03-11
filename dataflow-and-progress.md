@@ -30,12 +30,6 @@ Automations/triggers sit **above** (data entry / touchpoints) and **below** (dow
 
 ```mermaid
 flowchart LR
-  subgraph legend [""]
-    direction LR
-    L1[Created]
-    L2[Not created]
-  end
-
   subgraph entry ["Entry and capture"]
     A["Existing member refers lead"]
     B["Referral Tracking Form Retool"]

@@ -11,7 +11,7 @@ Running log of what’s been created for the [referral_tracking](https://github.
 | Column | Type | Purpose |
 |--------|------|--------|
 | `id` | uuid | Unique row id (auto) |
-| `t_1`, `t_2`, `t_3` | boolean | Trial/consult steps (e.g. T1, T2, T3) |
+| `s_1`, `s_2`, `s_3` | boolean | Session 1, 2, 3 (trial/consult steps) |
 | `all_completed` | boolean | All steps done |
 | `signed_up` | boolean | Lead became a member (can be automated) |
 | `membership` | text | **Name** of membership they chose (e.g. "6 Month PERFORM - x3") |
@@ -50,6 +50,7 @@ Running log of what’s been created for the [referral_tracking](https://github.
 | Migration | What it did |
 |-----------|-------------|
 | `create_lead_referral_table` | Created `lead_referral` with id, t_1–t_3, all_completed, signed_up, membership, membership_value, price_paid, reason_nosignup; RLS on then disabled. |
+| `lead_referral_rename_t_to_s_sessions` | Renamed `t_1` → `s_1`, `t_2` → `s_2`, `t_3` → `s_3` (Session 1, 2, 3). |
 | `lead_referral_add_fk_columns_rename_disable_rls` | Added referring_member, date_created, referral_type, attribution_notes; disabled RLS. |
 | `lead_referral_add_name_phone_email` | Added name, phone, email (text). |
 | `lead_referral_rename_raisin_to_reason_nosignup` | Renamed raisin to reason_nosignup. |

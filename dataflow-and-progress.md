@@ -37,7 +37,7 @@ flowchart LR
   end
 
   subgraph trial ["Trial and conversion"]
-    D["T1 T2 T3 completed"]
+    D["S1 S2 S3 completed"]
     E["Completed All 3"]
     F["Signed up?"]
     G["Membership value price"]
@@ -95,7 +95,7 @@ flowchart TB
   subgraph below ["Downstream automations below the main flow"]
     A1["Trigger when signed_up = true"]
     A2["Create or update referral credit 1k"]
-    A3["Optional CRON backfill T1 T2 T3 from member_memberships newsale"]
+    A3["Optional CRON backfill S1 S2 S3 from member_memberships newsale"]
     A4["Auto-flag revenue or survey score 8 to 10 Phase 2"]
   end
 
@@ -163,7 +163,7 @@ These automations are **not** in Retool; they will be implemented in Supabase.
 
 ### Part 2 (later)
 
-- **all_completed:** Trigger or function so that when `t_1`, `t_2`, and `t_3` are all true on a `lead_referral` row, set `all_completed = true` (and optionally when any is false, set `all_completed = false`). Can be a small trigger on `lead_referral` BEFORE INSERT/UPDATE.
+- **all_completed:** Trigger or function so that when `s_1`, `s_2`, and `s_3` are all true on a `lead_referral` row, set `all_completed = true` (and optionally when any is false, set `all_completed = false`). Can be a small trigger on `lead_referral` BEFORE INSERT/UPDATE.
 - **Referral credit:** When a lead is marked signed up, create/update a row in `referral_credit` (or `member_holds` with referral type) for the `referring_member` ($1k credit). Separate trigger or same function.
 
 ---
@@ -172,7 +172,7 @@ These automations are **not** in Retool; they will be implemented in Supabase.
 
 | Object | Status | Notes |
 |--------|--------|--------|
-| **lead_referral** | ✅ Created | Referral name, phone, email, referring_member, date_created, referral_type, attribution_notes; T1/T2/T3, all_completed, signed_up, membership, membership_value, price_paid, reason_nosignup, sale_objection_reason. |
+| **lead_referral** | ✅ Created | Referral name, phone, email, referring_member, date_created, referral_type, attribution_notes; s_1/s_2/s_3 (Session 1–3), all_completed, signed_up, membership, membership_value, price_paid, reason_nosignup, sale_objection_reason. |
 | **member_referral_view** | ❌ Not created | Planned view: one row per active member, has_referred, referral count, membership value, renewal date, credit balances, last touchpoint date/type/staff. |
 | **member_referral_log** | ❌ Not created | Planned table: touchpoint history (member_id, touchpoint_type, touchpoint_date, staff_member_id, notes). |
 | **referral_credit** (or member_holds extension) | ❌ Not created | $1k credit per successful referral; issued/redeemed/outstanding; trigger when signed_up = true. |
@@ -188,14 +188,14 @@ These automations are **not** in Retool; they will be implemented in Supabase.
 - **Supabase (current):** No referral-specific functions or triggers. No routines reference `lead_referral`; no triggers on `lead_referral` or `member_memberships` for referral sync.
 - **Planned (see “Plan” above):**
   - **Part 1:** Trigger on `member_memberships` INSERT (and optionally UPDATE): fuzzy match new member name to `lead_referral.name` → update that lead’s `membership` (FK to `member_memberships.id`), `membership_value` and `price_paid` from `member_newsale_metadata`, and `signed_up = true`.
-  - **Part 2:** Trigger on `lead_referral` so `all_completed` is set when T1, T2, T3 are all true; and trigger/function to create referral credit when signed up.
+  - **Part 2:** Trigger on `lead_referral` so `all_completed` is set when S1, S2, S3 are all true; and trigger/function to create referral credit when signed up.
 
 ---
 
 ## Cron jobs
 
 - **Referral-related cron:** None. Existing cron jobs cover coach expectations, schedule periods, snapshots, attendance views, etc.
-- **Planned:** CRON/backfill from `member_memberships` and newsale meta into `lead_referral` for T1/T2/T3 and conversion (if not done entirely in Retool).
+- **Planned:** CRON/backfill from `member_memberships` and newsale meta into `lead_referral` for S1/S2/S3 and conversion (if not done entirely in Retool).
 
 ---
 

@@ -119,6 +119,73 @@ flowchart TB
 
 ---
 
+## How it works — walkthrough with example
+
+> Meet **Sarah** (existing Lockeroom member) and **Tom** (her friend). This walks through what happens at every stage, from referral to credit redemption.
+
+```mermaid
+sequenceDiagram
+    participant Staff
+    participant Sarah
+    participant Tom
+    participant System
+
+    Staff->>System: Logs Sarah referred Tom
+    Note over System: lead_referral row created
+
+    Staff->>System: Ticks off Session 1, 2, 3 for Tom
+    Note over System: s_1, s_2, s_3 marked true
+
+    Tom->>System: Signs up for 6 Month PERFORM
+    Note over System: Auto-matches Tom to referral
+    System->>System: signed_up = true
+    System->>System: $1,000 credit issued to Sarah
+    Note over System: member_referral_credits row created
+
+    Sarah->>System: Renews her own membership
+    System->>System: N8N marks credit as redeemed
+    Note over System: applied_to_renewal = true
+```
+
+### Stage 1 — Referral logged
+
+Sarah tells the team that her friend Tom wants to try Lockeroom. A staff member opens the **Referral Tracking Form** in Retool and enters Tom's name, phone, and email, selecting Sarah as the referring member.
+
+*Technical: A new row is inserted into `lead_referral` with Tom's details and `referring_member` set to Sarah's `member_database.id`.*
+
+### Stage 2 — Trial sessions
+
+Tom comes in for his three trial sessions over the next couple of weeks. After each session, a staff member ticks off Session 1, Session 2, then Session 3 in Retool.
+
+*Technical: `s_1`, `s_2`, `s_3` are set to `true` on Tom's `lead_referral` row. Retool's transformer calculates `all_completed = true` when all three are done.*
+
+### Stage 3 — Signup confirmed and credit issued
+
+Tom decides to sign up for a **6 Month PERFORM x3** membership. The team processes the sale and a new membership record is created. Two things happen automatically:
+
+1. The system recognises Tom's name matches the referral and marks it as **signed up**, pulling in the membership value and price paid.
+2. Because the referral is now confirmed, a **$1,000 credit** is automatically created for Sarah.
+
+*Technical: Inserting into `member_memberships` fires `trg_sync_lead_referral` which fuzzy-matches Tom's name to `lead_referral.name`, then sets `signed_up = true`, `membership` (FK), `membership_value`, and `price_paid`. That update fires `trg_issue_referral_credit` which inserts a row in `member_referral_credits` with `member_id` = Sarah, `lead_referral_id` = Tom's referral, `membership_id` = Tom's new membership, `amount` = 1000.*
+
+### Stage 4 — Renewal redeems credit
+
+Six months later, Sarah renews her own membership. The N8N automation detects the renewal and automatically marks all of Sarah's outstanding referral credits as **redeemed**.
+
+*Technical: N8N detects a new row in `member_memberships` where `membership_stage = 'renewal'` for Sarah's `member_id`. It runs an UPDATE on `member_referral_credits` setting `applied_to_renewal = true` and `date_applied = CURRENT_DATE` for all of Sarah's unredeemed rows.*
+
+### What Sarah's dashboard row looks like after each stage
+
+| Stage | has_referred | referral_count | credit_earned | credit_redeemed | outstanding |
+|-------|-------------|---------------|---------------|----------------|-------------|
+| After Stage 1 | true | 0 | $0 | $0 | $0 |
+| After Stage 3 | true | 1 | $1,000 | $0 | $1,000 |
+| After Stage 4 | true | 1 | $1,000 | $1,000 | $0 |
+
+> **Note:** `referral_count` only increments when the referred lead actually signs up (Stage 3), not when the referral is first logged. If Tom never signed up, Sarah would still show `has_referred = true` but `referral_count = 0` and no credit.
+
+---
+
 ## Completed: Supabase functions and triggers
 
 ### ~~Part 1: Match new member_memberships to lead_referral and auto-fill conversion~~ DONE

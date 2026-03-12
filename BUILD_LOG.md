@@ -65,7 +65,10 @@ Running log of what’s been created for the [referral_tracking](https://github.
 | `create_member_referral_log_table` | Created `member_referral_log` table: id, member_id (FK), touchpoint_type (enum), touchpoint_date, staff_member_id (FK), notes, created_at. |
 | `create_member_referral_credits_table` | Created `member_referral_credits` table: id, member_id (FK), lead_referral_id (FK), amount (default 1000), issued_at, applied_to_renewal, date_applied, notes, created_at. |
 | `create_issue_referral_credit_on_signup` | Created function `issue_referral_credit_on_signup()` and trigger `trg_issue_referral_credit_on_signup` AFTER UPDATE on lead_referral. |
-| `create_member_referral_view` | Created view `member_referral_view`: per-member referral count, credit balances, last touchpoint. |
+| `create_member_referral_view` | Created view `member_referral_view`: per-member referral count (signed-up only), credit balances, last touchpoint. |
+| `update_member_referral_view_count_signed_up_only` | Updated view: referral_count now only counts leads where signed_up = true. |
+| `add_membership_id_to_member_referral_credits` | Added `membership_id` (uuid FK to member_memberships) to `member_referral_credits` — links credit to the referred lead's membership. |
+| `update_issue_referral_credit_with_membership_id` | Updated `issue_referral_credit_on_signup()` to also set `membership_id = NEW.membership` when issuing the credit. |
 
 ---
 
@@ -75,7 +78,7 @@ Running log of what’s been created for the [referral_tracking](https://github.
 - **Referrer** is in `referring_member` (links to `member_database`).
 - When a **primary membership** is created in `member_memberships`, the trigger `trg_sync_lead_referral_on_membership_insert` fires and calls `sync_lead_referral_on_new_membership()`. This joins `member_memberships.member_id` to `member_database` to get the full name, then fuzzy-matches against `lead_referral.name` (using ILIKE contains and `word_similarity()` from pg_trgm). If a matching lead is found (not already signed up), it sets `membership` (FK to `member_memberships.id`), `membership_value` and `price_paid` (from `member_newsale_metadata` via `member_memberships.newsale_metadata`), and `signed_up = true`.
 
-- When a lead's `signed_up` is set to true (by the sync trigger above), `trg_issue_referral_credit_on_signup` fires `issue_referral_credit_on_signup()` which auto-creates a $1k credit row in `member_referral_credits` for the referring member (duplicate-guarded).
+- When a lead's `signed_up` is set to true (by the sync trigger above), `trg_issue_referral_credit_on_signup` fires `issue_referral_credit_on_signup()` which auto-creates a $1k credit row in `member_referral_credits` for the referring member, including `membership_id` linking to the referred lead's membership (duplicate-guarded).
 - **`member_referral_log`** records staff-logged touchpoints per member (type from `referral_touchpoint_type` enum, date, staff, notes).
 - **`member_referral_view`** aggregates per member: referral count, credit balances (earned/redeemed/outstanding), and latest touchpoint.
 

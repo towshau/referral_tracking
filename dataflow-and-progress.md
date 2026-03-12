@@ -130,8 +130,8 @@ flowchart TB
 **Status:** All applied:
 - **Enum:** `referral_touchpoint_type` with 7 values (seasonal_promotion, renewal, winning_client_result, survey_response, 3_month_revenue_call, 30_day_call, new_sale_email_welcome_pack).
 - **Table:** `member_referral_log` — touchpoint history per member (member_id FK, touchpoint_type enum, touchpoint_date, staff_member_id FK, notes).
-- **Table:** `member_referral_credits` — $1k credit per successful referral (member_id FK, lead_referral_id FK, amount default 1000, issued_at, applied_to_renewal, date_applied, notes).
-- **Function:** `issue_referral_credit_on_signup()` — AFTER UPDATE on `lead_referral`, when `signed_up` changes to true and `referring_member` is set, auto-inserts a $1k credit row in `member_referral_credits` (with duplicate guard).
+- **Table:** `member_referral_credits` — $1k credit per successful referral (member_id FK, lead_referral_id FK, membership_id FK to member_memberships, amount default 1000, issued_at, applied_to_renewal, date_applied, notes).
+- **Function:** `issue_referral_credit_on_signup()` — AFTER UPDATE on `lead_referral`, when `signed_up` changes to true and `referring_member` is set, auto-inserts a $1k credit row in `member_referral_credits` with membership_id linking to the referred lead's membership (with duplicate guard).
 - **Trigger:** `trg_issue_referral_credit_on_signup` — fires the above function.
 - **View:** `member_referral_view` — one row per member from `member_database`, with: has_referred, referral_count, total_credit_earned, total_credit_redeemed, outstanding_credit, last_touchpoint_date, last_touchpoint_type, last_touchpoint_staff_id.
 
@@ -143,7 +143,7 @@ flowchart TB
 |--------|--------|--------|
 | **lead_referral** | ✅ Created | Referral name, phone, email, referring_member, date_created, referral_type, attribution_notes; s_1/s_2/s_3 (Session 1–3), all_completed, signed_up, membership (FK to member_memberships), membership_value, price_paid, reason_nosignup, sale_objection_reason. |
 | **member_referral_log** | ✅ Created | Touchpoint history: member_id (FK), touchpoint_type (enum), touchpoint_date, staff_member_id (FK), notes, created_at. |
-| **member_referral_credits** | ✅ Created | Referral credits: member_id (FK), lead_referral_id (FK), amount (default 1000), issued_at, applied_to_renewal, date_applied, notes, created_at. |
+| **member_referral_credits** | ✅ Created | Referral credits: member_id (FK), lead_referral_id (FK), membership_id (FK to member_memberships — the referred lead's membership), amount (default 1000), issued_at, applied_to_renewal, date_applied, notes, created_at. |
 | **member_referral_view** | ✅ Created | One row per member: has_referred, referral_count, total_credit_earned, total_credit_redeemed, outstanding_credit, last_touchpoint_date/type/staff. |
 | **member_database** | ✅ Exists | Source for active members and member list. |
 | **member_memberships** | ✅ Exists | Source for renewal/sign-up and backfill. |
@@ -155,9 +155,9 @@ flowchart TB
 
 - **`sync_lead_referral_on_new_membership()`** — AFTER INSERT on `member_memberships`. Fuzzy-matches new member name (via `member_database` join) to `lead_referral.name`. Updates `membership` (FK), `membership_value`, `price_paid`, `signed_up = true`.
 - **`trg_sync_lead_referral_on_membership_insert`** — trigger that calls the above.
-- **`issue_referral_credit_on_signup()`** — AFTER UPDATE on `lead_referral`. When `signed_up` flips to true and `referring_member` is set, inserts a $1k row into `member_referral_credits` (skips if already exists for that lead).
+- **`issue_referral_credit_on_signup()`** — AFTER UPDATE on `lead_referral`. When `signed_up` flips to true and `referring_member` is set, inserts a $1k row into `member_referral_credits` with `membership_id` set to the referred lead's membership FK (skips if already exists for that lead).
 - **`trg_issue_referral_credit_on_signup`** — trigger that calls the above.
-- **FK constraints:** `lead_referral.membership` → `member_memberships.id`; `member_referral_credits.member_id` → `member_database.id`; `member_referral_credits.lead_referral_id` → `lead_referral.id`; `member_referral_log.member_id` → `member_database.id`; `member_referral_log.staff_member_id` → `staff_database.id`.
+- **FK constraints:** `lead_referral.membership` → `member_memberships.id`; `member_referral_credits.member_id` → `member_database.id`; `member_referral_credits.lead_referral_id` → `lead_referral.id`; `member_referral_credits.membership_id` → `member_memberships.id`; `member_referral_log.member_id` → `member_database.id`; `member_referral_log.staff_member_id` → `staff_database.id`.
 
 ---
 

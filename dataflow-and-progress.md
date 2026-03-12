@@ -14,7 +14,7 @@ This document reflects the current state of Supabase for the Lockeroom Referral 
 | **Enums** | `referral_touchpoint_type` (7 values) | — |
 | **Functions** | `sync_lead_referral_on_new_membership()`, `issue_referral_credit_on_signup()` | — |
 | **Triggers** | `trg_sync_lead_referral_on_membership_insert`, `trg_issue_referral_credit_on_signup` | — |
-| **Automation** | Retool Referral Tracking Form (writes to lead_referral) | — |
+| **Automation** | Retool Referral Tracking Form, Retool Referral Dashboard (view, credits, log tables), N8N renewal credit redemption | — |
 
 ---
 
@@ -89,7 +89,7 @@ flowchart TB
   subgraph above ["Data entry and touchpoints"]
     F1["Referral Tracking Form Retool"]
     F2["member_referral_log"]
-    F3["Staff logs touchpoint type date and staff"]
+    F3["Retool Dashboard views credits log"]
   end
 
   subgraph main ["Main table flow"]
@@ -97,24 +97,27 @@ flowchart TB
   end
 
   subgraph below ["Downstream automations"]
-    A1["CREATED: trg_sync_lead_referral fuzzy match signed_up membership value price"]
-    A2["CREATED: trg_issue_referral_credit auto-issue 1k credit on signup"]
-    A4["Auto-flag revenue or survey score 8 to 10 Phase 2"]
+    A1["trg_sync_lead_referral fuzzy match signed_up membership value price"]
+    A2["trg_issue_referral_credit auto-issue 1k credit on signup"]
+    A3["N8N renewal credit redemption"]
+    A4["Phase 2 - more clarity needed"]
   end
 
   F1 --> T1
   F2 -->|feeds member_referral_view| F3
   T1 --> A1
   A1 --> A2
+  A2 --> A3
   A4 -.-> T1
 
   style T1 fill:#9f9,stroke:#2d5a27
   style F1 fill:#9f9,stroke:#2d5a27
   style F2 fill:#9f9,stroke:#2d5a27
+  style F3 fill:#9f9,stroke:#2d5a27
   style A1 fill:#9f9,stroke:#2d5a27
   style A2 fill:#9f9,stroke:#2d5a27
-  style F3 fill:#f99,stroke:#8b0000
-  style A4 fill:#f99,stroke:#8b0000
+  style A3 fill:#9f9,stroke:#2d5a27
+  style A4 fill:#ff9,stroke:#8b8000
 ```
 
 ---
@@ -228,4 +231,18 @@ Six months later, Sarah renews her own membership. The N8N automation detects th
 
 ---
 
-*Last updated: March 2026. All referral system tables, views, functions, and triggers are live in Supabase.*
+## Notes for later implementation
+
+**Estimated timeline:** End of March 2026, after other items are completed.
+
+### Phase 2 — Auto-flag (more clarity needed)
+
+The original build plan referenced an "auto-flag" for revenue or survey scores (8-10). The exact requirements, trigger conditions, and what should happen when a flag is raised have not been defined yet. **More clarity is needed** on what this means in practice before any work begins.
+
+### Touchpoint integration into journey stages
+
+More advanced integration of **touchpoints** into the existing client journey stages. This would tie `member_referral_log` touchpoint types (e.g. 30-day call, 3-month revenue call, renewal) into the broader member journey pipeline, potentially auto-logging touchpoints when journey stage transitions occur or surfacing referral activity within the journey view.
+
+---
+
+*Last updated: March 2026. All referral system tables, views, functions, and triggers are live in Supabase. Retool dashboard and N8N renewal redemption are wired up.*

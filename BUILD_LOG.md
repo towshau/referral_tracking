@@ -30,7 +30,7 @@ Running log of what’s been created for the [referral_tracking](https://github.
 
 **Planned (not yet applied):**  
 - `member_id` (uuid, FK → member_database) – which member this lead became, once we match them.  
-- Trigger on **member_memberships** INSERT to auto-set `signed_up`, `member_id`, `membership` (name), `membership_type_id`, `membership_value`, `price_paid` when a primary membership is created and we match the lead by name/email.
+- Trigger `trg_sync_lead_referral_on_membership_insert` on **member_memberships** INSERT now auto-sets `signed_up`, `membership` (FK), `membership_value`, `price_paid` when a new membership is created and the lead is matched by name.
 
 ---
 
@@ -55,6 +55,9 @@ Running log of what’s been created for the [referral_tracking](https://github.
 | `lead_referral_add_name_phone_email` | Added name, phone, email (text). |
 | `lead_referral_rename_raisin_to_reason_nosignup` | Renamed raisin to reason_nosignup. |
 | `add_sale_objection_reason_enum_and_column` | Created sale_objection_reason enum and column. |
+| `lead_referral_add_fk_membership_to_member_memberships` | Added FK constraint `lead_referral.membership` → `member_memberships.id`. |
+| `create_sync_lead_referral_on_new_membership` | Created function `sync_lead_referral_on_new_membership()`: on new membership insert, fuzzy-match member name to lead_referral.name; update membership (FK), membership_value, price_paid, signed_up. |
+| `create_trigger_sync_lead_referral_on_membership_insert` | Created trigger `trg_sync_lead_referral_on_membership_insert` AFTER INSERT on member_memberships. |
 
 ---
 
@@ -62,6 +65,6 @@ Running log of what’s been created for the [referral_tracking](https://github.
 
 - **Leads** are stored in `lead_referral` (name, email, who referred them, trial steps, etc.).
 - **Referrer** is in `referring_member` (links to `member_database`).
-- When a **primary membership** is created in `member_memberships`, a trigger (when implemented) will match the new member to a lead by name/email and update that lead’s `signed_up`, `member_id`, `membership` (name), `membership_type_id`, `membership_value`, and `price_paid`.
+- When a **primary membership** is created in `member_memberships`, the trigger `trg_sync_lead_referral_on_membership_insert` fires and calls `sync_lead_referral_on_new_membership()`. This joins `member_memberships.member_id` to `member_database` to get the full name, then fuzzy-matches against `lead_referral.name` (using ILIKE contains and `word_similarity()` from pg_trgm). If a matching lead is found (not already signed up), it sets `membership` (FK to `member_memberships.id`), `membership_value` and `price_paid` (from `member_newsale_metadata` via `member_memberships.newsale_metadata`), and `signed_up = true`.
 
 See **FLOW.md** for a simple, non-technical flow of how leads and sign-ups work.

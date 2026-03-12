@@ -11,8 +11,8 @@ This document reflects the current state of Supabase for the Lockeroom Referral 
 |------|------------------|-------------------|
 | **Tables** | `lead_referral` | `member_referral_log`, `referral_credit` (or referral type on `member_holds`) |
 | **Views** | — | `member_referral_view` |
-| **Functions** | — | Match-new-member function; referral-credit function (see Plan) |
-| **Triggers** | — | On member_memberships INSERT: fuzzy match name to lead_referral.name then update lead (membership, value, price_paid, signed_up) |
+| **Functions** | `sync_lead_referral_on_new_membership()` | Referral-credit function (see Plan Part 2) |
+| **Triggers** | `trg_sync_lead_referral_on_membership_insert` (AFTER INSERT on member_memberships) | Trigger on lead_referral for all_completed when S1+S2+S3 = true |
 | **Cron** | — | No referral-specific cron in Supabase |
 | **RLS** | — | RLS not enabled on lead_referral; no policies yet |
 | **Automation** | Retool Referral Tracking Form (writes to lead_referral) | Conversion automations in Supabase (see Plan); $1k credit; auto-flag score 8–10 |
@@ -66,6 +66,8 @@ flowchart LR
   MM -.->|backfill CRON planned| C
   NM -.->|backfill planned| C
 
+  MM -->|"trg_sync_lead_referral_on_membership_insert"| C
+
   style C fill:#9f9,stroke:#2d5a27
   style A fill:#9f9,stroke:#2d5a27
   style B fill:#9f9,stroke:#2d5a27
@@ -93,7 +95,7 @@ flowchart TB
   end
 
   subgraph below ["Downstream automations below the main flow"]
-    A1["Trigger when signed_up = true"]
+    A1["CREATED: trg_sync_lead_referral fuzzy match signed_up membership value price"]
     A2["Create or update referral credit 1k"]
     A3["Optional CRON backfill S1 S2 S3 from member_memberships newsale"]
     A4["Auto-flag revenue or survey score 8 to 10 Phase 2"]
@@ -108,6 +110,7 @@ flowchart TB
 
   style T1 fill:#9f9,stroke:#2d5a27
   style F1 fill:#9f9,stroke:#2d5a27
+  style A1 fill:#9f9,stroke:#2d5a27
   style F2 fill:#f99,stroke:#8b0000
   style F3 fill:#f99,stroke:#8b0000
   style A1 fill:#f99,stroke:#8b0000
